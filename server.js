@@ -19,6 +19,7 @@ let sharedData = {
     company: 'HAMTECH'
 };
 
+// Charger les données
 function loadData() {
     try {
         if (fs.existsSync(DATA_FILE)) {
@@ -26,22 +27,23 @@ function loadData() {
             sharedData = JSON.parse(data);
         }
     } catch (error) {
-        console.log('خطأ:', error);
+        console.log('Erreur:', error);
     }
 }
 
+// Sauvegarder les données
 function saveData() {
     try {
         sharedData.lastUpdate = new Date().toISOString();
         fs.writeFileSync(DATA_FILE, JSON.stringify(sharedData, null, 2));
     } catch (error) {
-        console.log('خطأ:', error);
+        console.log('Erreur:', error);
     }
 }
 
 loadData();
 
-// ===== API Routes =====
+// ===== Routes API =====
 
 app.get('/api/data', (req, res) => {
     res.json({
@@ -96,7 +98,7 @@ app.post('/api/update-data', (req, res) => {
         
         res.json({
             success: true,
-            message: 'تم التحديث',
+            message: 'Données mises à jour',
             lastUpdate: sharedData.lastUpdate
         });
     } catch (error) {
@@ -130,5 +132,5 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ السيرفر يعمل على: http://localhost:${PORT}`);
+    console.log(`✅ Le serveur fonctionne sur: http://localhost:${PORT}`);
 });
