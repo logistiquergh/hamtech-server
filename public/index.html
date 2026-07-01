@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض الشيكات - HAMTECH</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .filters input, .filters select {
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filters button {
+            padding: 10px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .filters button:hover {
+            background: #5568d3;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .tables-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .table-wrapper {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-content {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .counter {
+            background: white;
+            color: #667eea;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .last-update {
+            font-size: 11px;
+            color: #999;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .tables-container {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 HAMTECH</h1>
+            <p>نظام عرض الشيكات والتحويلات</p>
+            <div id="connectionStatus" class="status offline">🔴 غير متصل</div>
+        </div>
+
+        <div class="filters">
+            <select id="statusFilter">
+                <option value="">جميع الحالات</option>
+                <option value="En attente">في الانتظار</option>
+                <option value="Envoyé">مرسل</option>
+                <option value="Rejeté">مرفوض</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="🔍 البحث...">
+            <button onclick="applyFilters()">🔍 بحث</button>
+            <button onclick="refreshData()" style="background: #28a745;">🔄 تحديث</button>
+        </div>
+
+        <div class="stats" id="statsContainer"></div>
+
+        <div class="tables-container">
+            <div class="table-wrapper">
+                <div class="table-header">
+                    📋 في الانتظار
+                    <span class="counter" id="pendingCount">0</span>
+                </div>
+                <div class="table-content" id="pendingContainer"></div>
+            </div>
+
+            <div class="table-wrapper">
+                <div class="table-header">
+                    ✅ مرسلة
+                    <span class="counter" id="sentCount">0</span>
+                </div>
+                <div class="table-content" id="sentContainer"></div>
+            </div>
+
+            <div class="table-wrapper">
+                <div class="table-header">
+                    ❌ مرفوضة
+                    <span class="counter" id="rejectedCount">0</span>
+                </div>
+                <div class="table-content" id="rejectedContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let allData = { cheques: [], stats: {} };
+        let isConnected = false;
+
+        function updateConnectionStatus() {
+            const el = document.getElementById('connectionStatus');
+            if (isConnected) {
+                el.className = 'status online';
+                el.textContent = '🟢 متصل';
+            } else {
+                el.className = 'status offline';
+                el.textContent = '🔴 غير متصل';
+            }
+        }
+
+        function formatMoney(amount) {
+            if (!amount && amount !== 0) return '-';
+            const parts = parseFloat(amount).toFixed(2).split('.');
+            const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return integerPart + ',' + parts[1] + ' DA';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}/${date.getFullYear()}`;
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(`${API_URL}/cheques`);
+                const data = await response.json();
+                allData.cheques = data.cheques;
+
+                const statsResponse = await fetch(`${API_URL}/stats`);
+                const stats = await statsResponse.json();
+                allData.stats = stats.stats;
+
+                isConnected = true;
+                updateConnectionStatus();
+                renderUI();
+            } catch (error) {
+                console.error('خطأ:', error);
+                isConnected = false;
+                updateConnectionStatus();
+            }
+        }
+
+        function renderUI() {
+            renderStats();
+            renderCheques();
+        }
+
+        function renderStats() {
+            const s = allData.stats;
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="stat-card">
+                    <h3>${s.totalCheques || 0}</h3>
+                    <p>إجمالي الشيكات</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${formatMoney(s.montantTotal || 0)}</h3>
+                    <p>المبلغ الإجمالي</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${s.enAttente || 0}</h3>
+                    <p>في الانتظار</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${s.envoyes || 0}</h3>
+                    <p>مرسلة</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${s.rejetes || 0}</h3>
+                    <p>مرفوضة</p>
+                </div>
+            `;
+        }
+
+        function renderCheques() {
+            const pending = allData.cheques.filter(c => c.statut === 'En attente');
+            const sent = allData.cheques.filter(c => c.statut === 'Envoyé');
+            const rejected = allData.cheques.filter(c => c.statut === 'Rejeté');
+
+            document.getElementById('pendingCount').textContent = pending.length;
+            document.getElementById('sentCount').textContent = sent.length;
+            document.getElementById('rejectedCount').textContent = rejected.length;
+
+            document.getElementById('pendingContainer').innerHTML = createTable(pending);
+            document.getElementById('sentContainer').innerHTML = createTable(sent);
+            document.getElementById('rejectedContainer').innerHTML = createTable(rejected);
+        }
+
+        function createTable(cheques) {
+            if (cheques.length === 0) {
+                return '<div class="empty-state">لا توجد بيانات</div>';
+            }
+
+            const rows = cheques.map(c => `
+                <tr>
+                    <td>${c.numeroDoc || '-'}</td>
+                    <td>${c.client || '-'}</td>
+                    <td>${c.banque || '-'}</td>
+                    <td>${formatMoney(c.valeur)}</td>
+                    <td>${formatDate(c.date)}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>رقم</th>
+                            <th>عميل</th>
+                            <th>بنك</th>
+                            <th>مبلغ</th>
+                            <th>تاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="last-update">التحديث: ${new Date().toLocaleTimeString('ar-DZ')}</div>
+            `;
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = allData.cheques;
+
+            if (status) {
+                filtered = filtered.filter(c => c.statut === status);
+            }
+
+            if (search) {
+                filtered = filtered.filter(c =>
+                    (c.client && c.client.toLowerCase().includes(search)) ||
+                    (c.numeroDoc && c.numeroDoc.toLowerCase().includes(search)) ||
+                    (c.banque && c.banque.toLowerCase().includes(search))
+                );
+            }
+
+            const pending = filtered.filter(c => c.statut === 'En attente');
+            const sent = filtered.filter(c => c.statut === 'Envoyé');
+            const rejected = filtered.filter(c => c.statut === 'Rejeté');
+
+            document.getElementById('pendingContainer').innerHTML = createTable(pending);
+            document.getElementById('sentContainer').innerHTML = createTable(sent);
+            document.getElementById('rejectedContainer').innerHTML = createTable(rejected);
+        }
+
+        function refreshData() {
+            fetchData();
+        }
+
+        fetchData();
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
