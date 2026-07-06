@@ -30,6 +30,7 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -38,28 +39,35 @@
             margin-bottom: 10px;
         }
 
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .status {
-            display: inline-block;
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
             padding: 10px 20px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            margin-top: 10px;
         }
 
-        .status.online {
+        .status-badge.online {
             background: #d4edda;
             color: #155724;
         }
 
-        .status.offline {
+        .status-badge.offline {
             background: #f8d7da;
             color: #721c24;
+        }
+
+        .status-badge.syncing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
         }
 
         .filters {
@@ -97,6 +105,14 @@
             background: #5568d3;
         }
 
+        .filters button.refresh-btn {
+            background: #28a745;
+        }
+
+        .filters button.refresh-btn:hover {
+            background: #218838;
+        }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -110,12 +126,19 @@
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
         }
 
         .stat-card h3 {
             color: #667eea;
             font-size: 28px;
             margin-bottom: 10px;
+            font-weight: bold;
         }
 
         .stat-card p {
@@ -190,10 +213,27 @@
             font-weight: 600;
         }
 
-        .last-update {
-            font-size: 11px;
-            color: #999;
-            margin-top: 10px;
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 768px) {
@@ -211,7 +251,8 @@
         <div class="header">
             <h1>🏢 HAMTECH</h1>
             <p>Système de Gestion des Chèques et des Virements</p>
-            <div id="connectionStatus" class="status offline">🔴 Non connecté</div>
+            <div id="statusBadge" class="status-badge offline">🔴 Non connecté</div>
+            <div id="updateTime" class="last-update">Chargement en cours...</div>
         </div>
 
         <div class="filters">
@@ -223,7 +264,7 @@
             </select>
             <input type="text" id="searchInput" placeholder="🔍 Rechercher...">
             <button onclick="applyFilters()">🔍 Rechercher</button>
-            <button onclick="refreshData()" style="background: #28a745;">🔄 Actualiser</button>
+            <button class="refresh-btn" onclick="refreshData()">🔄 Actualiser</button>
         </div>
 
         <div class="stats" id="statsContainer"></div>
@@ -259,23 +300,31 @@
         const API_URL = '/api';
         let allData = { cheques: [], stats: {} };
         let isConnected = false;
+        let autoRefreshInterval = null;
 
         function updateConnectionStatus() {
-            const el = document.getElementById('connectionStatus');
+            const el = document.getElementById('statusBadge');
             if (isConnected) {
-                el.className = 'status online';
+                el.className = 'status-badge online';
                 el.textContent = '🟢 Connecté';
             } else {
-                el.className = 'status offline';
+                el.className = 'status-badge offline';
                 el.textContent = '🔴 Non connecté';
             }
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('fr-FR');
+            const dateStr = now.toLocaleDateString('fr-FR');
+            document.getElementById('updateTime').textContent = `Dernière mise à jour: ${timeStr} - ${dateStr}`;
         }
 
         function formatMoney(amount) {
             if (!amount && amount !== 0) return '-';
             const parts = parseFloat(amount).toFixed(2).split('.');
             const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            return integerPart + ',' + parts[1] + ' DA';
+            return `${integerPart},${parts[1]} DA`;
         }
 
         function formatDate(dateString) {
@@ -298,6 +347,7 @@
 
                 isConnected = true;
                 updateConnectionStatus();
+                updateTimestamp();
                 renderUI();
             } catch (error) {
                 console.error('Erreur:', error);
@@ -312,8 +362,10 @@
         }
 
         function renderStats() {
+            const container = document.getElementById('statsContainer');
             const s = allData.stats;
-            document.getElementById('statsContainer').innerHTML = `
+
+            container.innerHTML = `
                 <div class="stat-card">
                     <h3>${s.totalCheques || 0}</h3>
                     <p>Total des chèques</p>
@@ -379,7 +431,6 @@
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
-                <div class="last-update">Mise à jour: ${new Date().toLocaleTimeString('fr-FR')}</div>
             `;
         }
 
@@ -411,11 +462,45 @@
         }
 
         function refreshData() {
+            console.log('🔄 Actualisation manuelle...');
             fetchData();
         }
 
+        function startAutoRefresh() {
+            // Actualisation toutes les 10 secondes
+            autoRefreshInterval = setInterval(() => {
+                console.log('🔄 Actualisation automatique des données...');
+                fetchData();
+            }, 10000); // 10 secondes
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Chargement initial
+        console.log('📍 Chargement des données initiales...');
         fetchData();
-        setInterval(fetchData, 30000);
+
+        // Démarrage de l'actualisation automatique
+        startAutoRefresh();
+
+        // Écouteurs de focus
+        window.addEventListener('focus', () => {
+            console.log('👁️ Fenêtre en focus - Actualisation automatique active');
+            if (!autoRefreshInterval) {
+                startAutoRefresh();
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            console.log('😴 Fenêtre non focalisée - Actualisation automatique continue');
+            // Vous pouvez choisir de continuer ou d'arrêter
+            // stopAutoRefresh();
+        });
     </script>
 </body>
 </html>
